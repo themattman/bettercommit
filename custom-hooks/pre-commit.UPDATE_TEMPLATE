@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+#
+# Syncs Git template directory with the central remote repository
+#
+# Author:  Matthew Kneiser
+# Date:    5/28/2015
+# Purpose: Check for latest git template repository from a central source
+
+set -e
+
+template_dir=$(git config --path --get init.templatedir)
+template_top_level=$(readlink -f "${template_dir}/..")
+template_file_subdir="template/bettercommit"
+template=$(readlink -f "${template_dir}/../.git")
+if [[ -z "$template_dir" ]]; then
+    echo "${0}: Error: git template dir is not set." >&2 && exit 1
+fi
+
+gitdir=$(git rev-parse --git-dir)
+if [[ -z "gitdir" ]]; then
+    echo "${0}: Error: not inside a git directory." >&2 && exit 1
+fi
+# Adds support for git-repo tool
+gitdir=$(readlink -f "${gitdir}/hooks/.." || :)
+template_subdir="${gitdir}/bettercommit"
+if [[ ! -f "${gitdir}/bettercommit/current" ]]; then
+    "${template_top_level}/utils/configure.py"                                 \
+        --cur-dir "${template_top_level}/${template_file_subdir}"              \
+        --cfg-dir "${template_top_level}/configs"                              \
+        --src-dir "${template_top_level}/custom-hooks"                         \
+        --dst-dir "${gitdir}/hooks"                                            \
+        --project "$(cat "${template_top_level}/${template_file_subdir}/current")"
+elif [[ ! -x "${template_dir}/../update.sh" ]]; then
+    echo "${0}: Error: ${template_dir}/../update.sh does not exist where it should with executable permissions." >&2 && exit 1
+fi
+
+# See if there is a difference between the template dir and the remote.
+#  if no change, then quit
+
+# Template dir & centralized remote different?
+! diff -q <(git --git-dir="$template" ls-remote origin -h refs/heads/master | awk '{print $1}') <(git --git-dir="$template" rev-parse HEAD) > /dev/null 2>&1 || remote_same=1
+# Target Repo & Template dir different?
+! diff -q <(git --git-dir="$template" rev-parse HEAD) <(cat "${template_subdir}/head_sha.txt") > /dev/null 2>&1 || template_same=1
+if [[ (-z $remote_same) || (-z $template_same) ]]; then
+    "${template_dir}/../update.sh" --non-interactive -p $(cat "${template_subdir}/current")
+else
+    exit 2
+fi

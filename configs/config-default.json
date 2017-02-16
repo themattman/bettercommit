@@ -1,0 +1,16 @@
+{
+    "hooks": [
+        {
+            "name": "pre-commit",
+            "ordering": [
+                "UPDATE_TEMPLATE"
+            ]
+        },
+        {
+            "name": "pre-push",
+            "ordering": [
+                "ENFORCE_FRAMEWORK"
+            ]
+        }
+    ]
+}

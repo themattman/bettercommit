@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#
+# Detect, notify, [and remove] any leading tabs
+#
+# Author:  Matthew Kneiser
+# Date:    09/14/2015
+# Purpose: Removes all leading tabs. This ensures consistent use of leading
+#          spaces in source code.
+#
+#          Alerts user about every line of every file modified by this script.
+#          Sends all output to a pager just like git diff :)
+#
+#          CURRENTLY only prints out leading tabs
+
+set -e
+
+for FILE in `exec git diff --cached --name-only` ; do
+    # Automatically delete leading tabs with this command
+    #sed 's/^\t//g' $FILE
+
+    grep_rc=0
+    grep -q $'\t' $FILE || grep_rc=1
+    if [[ grep_rc -eq 0 ]]; then
+        echo "${FILE}:"
+        # Note that ->  [ $'\t' ] is the ansi c quoted tab character.
+        # This is a bash feature. Grep follows the POSIX standard which doesn't
+        # have \t defined as tab.
+        grep -n --binary-files=without-match --color=always ^$'\t' $FILE || :
+    fi
+done

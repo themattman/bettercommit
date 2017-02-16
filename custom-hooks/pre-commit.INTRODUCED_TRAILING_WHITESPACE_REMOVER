@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+#
+# Introduced Trailing Whitespace Remover
+#
+# Author:  Matthew Kneiser
+# Date:    12/03/2014
+# Purpose: Removes trailing whitespace introduced by a commit.
+#          Does NOT remove all pre-existing whitespace, only *added* trailing
+#          that this commit contains.
+#
+#          Alerts user about every line of every file modified by this script.
+#          Sends all output to a pager just like git diff :)
+#
+#          Note: Adapted from the link in the first answer here:
+#          stackoverflow.com
+#           /questions
+#           /12689237
+#           /is-there-a-script-which-fixes-git-diff-check-warnings
+#
+#
+# Quick Reference: Check for whitespace with this command:
+# $ git diff-index --check --cached 4b825dc642cb6eb9a060e54bf8d69288fbee4904
+
+set -e
+
+if git-rev-parse --verify HEAD >/dev/null 2>&1 ; then
+    against=HEAD
+else
+    # Initial commit: diff against an empty tree object
+    against=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+fi
+
+# Detect platform
+platform="win"
+uname_result=`uname`
+if [[ "$uname_result" == "Linux" ]]; then
+    platform="linux"
+elif [[ "$uname_result" == "Darwin" ]]; then
+    platform="mac"
+fi
+
+# change IFS to ignore filename's space in |for|
+IFS="
+"
+
+# <themattman> 7/2/2015 Future enhancement - couldn't get git-diff to respect
+# the core.whitespace configuration varible. Either local or global.
+# Workaround: grep for the string "trailing whitespace" for now...
+#
+# # Preserve "core.whitespace" git configuration variable before modifying it just
+# #  for git-diff
+# previous_local_corewhitespace=$(git config --get --local core.whitespace)
+# git config --local core.whitespace blank-at-eol
+# git config --local core.whitespace ${previous_local_corewhitespace}
+
+
+# This Git command spits out all the lines that have *introduced* trailing
+# whitespace. Trailing NOP is to ignore errors if there is no offending whitespace :)
+files_and_lines=$(git diff --check --cached | sed '/^[+-]/d' | grep "trailing whitespace") || :
+
+# Remove trailing whitespace in modified lines
+if [[ -z "${files_and_lines}" ]]; then
+    echo "No trailing whitespace introduced in this commit!"
+fi
+for line in ${files_and_lines}; do
+    # get file name
+    if [[ "$platform" == "mac" ]]; then
+        file="`echo $line | sed -E 's/:[0-9]+: .*//'`"
+        line_number="`echo $line | sed -E 's/.*:([0-9]+).*/\1/'`"
+    else
+        file="`echo $line | sed -r 's/:[0-9]+: .*//'`"
+        line_number="`echo $line | sed -r 's/.*:([0-9]+).*/\1/'`"
+    fi
+
+    # Since $file in working directory isn't always equal to $file in index,
+    # we backup it; thereby we can add our whitespace fixes without accidently
+    # adding unstaged changes
+    backup_file="${file}.working_directory_backup"
+    cat "$file" > "$backup_file"
+    git checkout -- "$file" # discard unstaged changes in working directory
+
+    # Remove trailing whitespace in $file (modified lines only)
+    if [[ "$platform" == "win" ]]; then
+        # In windows, `sed -i` adds ready-only attribute to $file (I don't know why),
+        # so we use temp file instead
+        sed "${line_number}s/[[:space:]]*$//" "$file" > "${file}.bak"
+        mv -f "${file}.bak" "$file"
+    elif [[ "$platform" == "mac" ]]; then
+        sed -i "" "${line_number}s/[[:space:]]*$//" "$file"
+    else
+        sed -i "${line_number}s/[[:space:]]*$//" "$file"
+    fi
+
+    # Show what was just removed by reversing the diff
+    #  using colorized output of course
+    git diff --color=always -R "${file}"
+
+    git add "$file" #Add file to index, so our whitespace changes will be committed
+
+    # Restore unstaged changes in $file from its working directory backup, fixing
+    # whitespace that we fixed above
+    sed "${line_number}s/[[:space:]]*$//" "$backup_file" > "$file"
+    rm "$backup_file"
+
+    [[ "$platform" == "mac" ]] || e_option="-e" # mac does not understand -e
+    echo $e_option "Removed trailing whitespace *that was introduced* into \033[31m$file\033[0m:$line_number"
+done
+
+# Now we can commit
+exit

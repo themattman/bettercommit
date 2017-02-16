@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# Update the top-level README for a custom branch
+#
+# Author:  Matthew Kneiser
+# Date:    6/23/2015
+# Purpose: There are commands in the README that are branch-specific.
+#          This hook makes sure those commands match what branch you are pushing.
+#
+#          UPDATE: This hook is neat, but no longer used for maintenance of this repo :(
+
+set -e
+
+read local_ref local_sha remote_ref remote_sha || :
+branch_name=$(echo "${local_ref}" | awk -F'/' '{print $NF}')
+
+if [[ "${remote_sha}" = "0000000000000000000000000000000000000000" ]]; then
+    sed -i "s/\-b master/\-b ${branch_name}/g" README.md
+    git add README.md
+    git commit -m "Updated README for new branch [${branch_name}]" || :
+else
+    echo "Nothing to worry about here!"
+fi

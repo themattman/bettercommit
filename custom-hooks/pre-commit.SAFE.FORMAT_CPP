@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# CPP Format Checker
+#
+# Author: Matthew Kneiser
+# Date:   07/11/2016
+
+set -e
+
+if [[ "linux-gnu" = "${OSTYPE}" ]]; then
+    COLOR_PURPLE="\e[1;35m"
+    COLOR_YELLOW="\e[1;33m"
+    COLOR_GREEN="\e[0;32m"
+    COLOR_END="\033[0m"
+fi
+
+if ! which clang-format >/dev/null 2>&1; then
+    echo -e "${COLOR_PURPLE}clang-format is not in your \$PATH.${COLOR_END}"
+    exit 0
+fi
+
+all_good="true"
+for FILE in `exec git diff --cached --name-only` ; do
+    if [[ (${FILE##*.} = "c") || (${FILE##*.} = "cpp") || (${FILE##*.} = "h") ]]; then
+        if ! clang-format -style=Google $FILE | diff -q - $FILE >/dev/null 2>&1; then
+            echo -e "${COLOR_YELLOW}File:[${FILE}] not in compliance.${COLOR_END}"
+            all_good="false"
+        fi
+    fi
+done
+
+if [[ all_good = "true" ]]; then
+    echo -e "${COLOR_GREEN}Files are in compliance${COLOR_END}"
+fi

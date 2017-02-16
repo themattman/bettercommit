@@ -1,0 +1,20 @@
+{
+    "hooks": [
+        {
+            "name": "pre-commit",
+            "ordering": [
+                "UPDATE_TEMPLATE",
+                "INTRODUCED_TRAILING_WHITESPACE_REMOVER",
+                "TRACK_STATS",
+                "COPYRIGHT_GENERIC",
+                "DETECT_LEADING_TABS"
+            ]
+        },
+        {
+            "name": "pre-push",
+            "ordering": [
+                "TRACK_STATS"
+            ]
+        }
+    ]
+}

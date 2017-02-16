@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# Tracks git commits in a central location
+#
+# Author:  Matthew Kneiser
+# Date:    11/03/2015
+# Purpose: Collects basic metadata about your commits for project-level analysis
+
+set -e
+
+TRACKING_REPO_HOST="github.com"   #TODO
+TRACKING_REPO_USERNAME=""         #TODO
+TRACKING_REPO_NAME="git-tracking" #TODO
+TRACKING_REPO_BRANCH="commits"    #TODO
+
+git_dir="$(git template)/../../${TRACKING_REPO_NAME}"
+template_base_dir="$(git template)/../.."
+# Clone the tracking repo if necessary
+if [[ ! -d "${git_dir}" ]]; then
+    cd "${template_base_dir}"
+    git clone --template=/usr/share/git-core/templates \
+        -b "${TRACKING_REPO_BRANCH}"                   \
+        "git@${TRACKING_REPO_HOST}:${TRACKING_REPO_USERNAME}/${TRACKING_REPO_NAME}.git"
+    cd -
+fi
+
+timestamp=$(date +%Y_%m_%d__%H_%M_%S)
+commit_filename="${USER}.${timestamp}.commit"
+commit_path="${git_dir}/${commit_filename}"
+
+echo "author:$(git config --get user.name) <$(git config --get user.email)>"       >> $commit_path
+echo "remote_name:$(git remote)"                                                   >> $commit_path
+echo "remote_url:$(git config --get remote.$(git remote).url)"                     >> $commit_path
+echo "local_template:$(git update -c)"                                             >> $commit_path
+echo "global_template:$(git update -g)"                                            >> $commit_path
+echo "SHLVL: $SHLVL"                                                               >> $commit_path
+echo "dirty_file_stats:$(git diff --stat | tail -n 1)"                             >> $commit_path
+echo "version:$(git --git-dir=$(git template)/../.git describe --tags --abbrev=0)" >> $commit_path
+echo "host:${HOSTNAME}"                                                            >> $commit_path
+echo "user:${USER}"                                                                >> $commit_path
+
+
+cd "${git_dir}"
+git add "${commit_path}"
+git commit -m "${commit_filename}" #>/dev/null 2>&1
+git pull
+git push origin "${TRACKING_REPO_BRANCH}" #>/dev/null 2>&1

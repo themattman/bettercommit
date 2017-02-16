@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+#
+# Tracks git pushes/commits in a central location
+#
+# Author:  Mathew Kneiser
+# Date:    11/04/2015
+# Purpose: Collects basic metadata about your commits for project-level analysis
+#
+# This hook is called with the following parameters:
+#
+# $1 -- Name of the remote to which the push is being done
+# $2 -- URL to which the push is being done
+#
+# If pushing without using a named remote those arguments will be equal.
+#
+# Information about the commits which are being pushed is supplied as lines to
+# the standard input in the form:
+#
+#   <local ref> <local sha1> <remote ref> <remote sha1>
+#
+# This sample shows how to prevent push of commits where the log message starts
+# with "WIP" (work in progress).
+
+set -e
+
+TRACKING_REPO_HOST="github.com"    # TODO
+TRACKING_REPO_USERNAME=""          # TODO
+TRACKING_REPO_NAME="git-tracking"  # TODO
+TRACKING_REPO_BRANCH="commits"     # TODO
+
+git_dir="$(git template)/../../${TRACKING_REPO_NAME}"
+git_str="--git-dir=$git_dir/.git --work-tree=$git_dir"
+template_base_dir="$(git template)/../.."
+# Clone the tracking repo if necessary
+if [[ ! -d "${git_dir}" ]]; then
+    cd "${template_base_dir}"
+    # Don't want to install templates into this repo! Avoiding infinite loop in pre-push!!
+    git clone --template=/usr/share/git-core/templates \
+        -b "${TRACKING_REPO_BRANCH}"                   \
+        "git@${TRACKING_REPO_HOST}:${TRACKING_REPO_USERNAME}/${TRACKING_REPO_NAME}.git"
+    cd -
+fi
+
+timestamp=$(date +%Y_%m_%d__%H_%M_%S)
+commit_filename="${USER}.${timestamp}.push"
+commit_path="${git_dir}/${commit_filename}"
+
+# Capture Arguments
+remote="$1"
+url="$2"
+
+z40=0000000000000000000000000000000000000000
+
+IFS=' '
+while read local_ref local_sha remote_ref remote_sha
+do
+    if [[ "$local_sha" = $z40 ]]; then
+        # Handle delete
+        echo "deleted"                  >> "${commit_path}"
+        echo "local_ref:${local_ref}"   >> "${commit_path}"
+        echo "local_sha:${local_sha}"   >> "${commit_path}"
+        echo "remote_ref:${remote_ref}" >> "${commit_path}"
+        echo "remote_sha:${remote_sha}" >> "${commit_path}"
+        echo ":::"                      >> "${commit_path}"
+    else
+        if [[ "$remote_sha" = $z40 ]]; then
+            # New branch, examine all commits
+            range="$local_sha"
+        else
+            # Update to existing branch, examine new commits
+            range="$remote_sha..$local_sha"
+        fi
+
+        num_modified_files=$(git diff --name-only "$range" | wc -l)
+        num_commits=$(git log --oneline "${range}" | wc -l)
+
+        echo "local_ref:${local_ref}"           >> "${commit_path}"
+        echo "local_sha:${local_sha}"           >> "${commit_path}"
+        echo "remote_ref:${remote_ref}"         >> "${commit_path}"
+        echo "remote_sha:${remote_sha}"         >> "${commit_path}"
+        echo "num_files:${num_modified_files}"  >> "${commit_path}"
+        echo "num_commits:${num_commits}"       >> "${commit_path}"
+        echo "all_remote_names:$(git remote | tr '\n' ' ')" >> "${commit_path}"
+
+        #
+        # Not really a way to disambiguate branch specified in "git push BRANCH_NAME"
+        # Thus, printing out names and URLs of every git remote
+        #
+        # UPDATE: Yes there is! The remote name and url are passed into the
+        #         top-level pre-push script as arguments.
+        # for remote_name in $(git remote); do
+        #     echo "remote_name: [${remote_name}]"
+        #     echo "remote_url:$(git config --get remote.${remote_name}.url)" >> "${commit_path}"
+        # done
+        echo "remote_name:$remote"              >> "${commit_path}"
+        echo "remote_url:$url"                  >> "${commit_path}"
+        echo "local_template:$(git update -c)"  >> "${commit_path}"
+        echo "global_template:$(git update -c)" >> "${commit_path}"
+        echo "version:$(git --git-dir=$(git template)/../.git describe --tags --abbrev=0)" >> "${commit_path}"
+        echo "host:${HOSTNAME}"                 >> "${commit_path}"
+        echo "user:${USER}"                     >> "${commit_path}"
+        echo ":::"                              >> "${commit_path}"
+    fi
+done
+
+if [[ -f $commit_path ]]; then
+    # cd "${git_dir}"
+    git $git_str add "${commit_path}"
+    git $git_str commit --no-verify -m "${commit_filename}" #>/dev/null 2>&1
+    git $git_str pull
+    git $git_str push origin "${TRACKING_REPO_BRANCH}" #>/dev/null 2>&1
+fi

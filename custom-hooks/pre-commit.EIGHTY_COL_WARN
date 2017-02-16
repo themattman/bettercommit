@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+#
+# 80 Char/Line Warning
+#
+# Author:  Matthew Kneiser
+set -e
+
+# Check for files over 80 lines in length
+for FILE in `exec git diff --cached --name-only` ; do
+    if grep -qnE --color=always ^.{82} $FILE; then
+       echo -e "\E[47;43m$FILE is longer than 80 lines! \033[0m"
+       grep -nE ^.{82} $FILE | cut -f1 -d: | xargs -I{} sh -c "echo -n \"{}:\" && sed -n {},{}p $FILE | grep --color=always -E ^.{81}"
+    fi
+done
+echo -e "\E[47;42m80 Char Line Checker complete. \033[0m";

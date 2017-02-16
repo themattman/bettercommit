@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# Lint Python code
+#
+# Author:  Matthew Kneiser
+# Date:    09/14/2015
+# Purpose: Lint Python code
+
+set -e
+
+for FILE in `exec git diff --staged --name-only` ; do
+    if [[ "${FILE}" =~ ".json" ]]; then
+        diff <(pylint -r n  --msg-template="{path}:{line}:{msg}" $(git show HEAD:"${FILE}") 2>/dev/null | tail -n +2  | cut -d':' -f3-) <(pylint -r n  --msg-template="{path}:{line}:{msg}" "${FILE}" 2>/dev/null | tail -n +2  | cut -d':' -f3-)
+    else
+        echo "not python"
+    fi
+done

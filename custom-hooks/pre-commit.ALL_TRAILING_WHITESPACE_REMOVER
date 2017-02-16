@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+#
+# All Trailing Whitespace Remover
+#
+# Author:  Matthew Kneiser
+# Date:    12/03/2014
+# Purpose: Removes all introduced and pre-existing trailing whitespace in only
+#          the files touched in this commit.
+#
+#          Alerts user about every line of every file modified by this script.
+#          Sends all output to a pager just like git diff :)
+#
+# Quick Reference: Check for whitespace with this command:
+# $ git diff-index --check --cached 4b825dc642cb6eb9a060e54bf8d69288fbee4904
+
+set -e
+
+if git-rev-parse --verify HEAD >/dev/null 2>&1 ; then
+    against=HEAD
+else
+    # Initial commit: diff against an empty tree object
+    against=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+fi
+
+# Detect platform
+platform="win"
+uname_result=`uname`
+if [[ "$uname_result" == "Linux" ]]; then
+    platform="linux"
+elif [[ "$uname_result" == "Darwin" ]]; then
+    platform="mac"
+fi
+
+# Find files with trailing whitespace
+for file in `exec git diff-index --check --cached $against -- | sed '/^[+-]/d' | sed -E 's/:[0-9]+:.*//' | uniq` ; do
+    if [[ "$platform" == "linux" ]]; then
+        # Alert the user about the problem file (with bold text, and yes,
+        #  the space after the ! is necessary) using Linux-specific color codes
+        echo -e "\E[47;43m${file} has trailing whitespace!\033[0m"
+    else
+        echo -e "$file has trailing whitespace!"
+    fi
+
+    # Fix the file in-place
+    if [[ "$platform" == "win" ]]; then
+        sed "s/[[:space:]]*$//" "${file}" > "${file}.bak"
+        mv -f "${file}.bak" "${file}"
+    elif [[ "$platform" == "mac" ]]; then
+        sed -i "" -e "s/[[:space:]]*$//g" "${file}"
+    else
+        sed -i"" -e "s/[[:space:]]*$//g" "${file}"
+    fi
+
+    # Show what was just removed by reversing the diff
+    #  using colorized output of course
+    git diff --color=always -R "${file}"
+
+    # Transparently add the changes to the commit
+    git add "${file}"
+done
+echo -e "\E[47;42mRemoved all trailing whitespace from touched files.\033[0m";
+
+exit

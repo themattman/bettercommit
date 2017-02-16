@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# Enforces Branching Conventions for the Git Template Repo
+#
+# Author:  Matthew Kneiser
+# Date:    6/23/2015
+# Purpose: 1) Branch name must conform to a convention
+#          2) Can only push config file to a non-master branch
+#          3) Can't push config to the master branch
+#
+#          UPDATE: This hook is neat, but no longer used for maintenance of this repo :(
+
+set -e
+
+forbidden_branch="master"
+forbidden_file="template/config.json"
+
+read local_ref local_sha remote_ref remote_sha
+
+branch_name=$(echo "${local_ref}" | awk -F'/' '{print $NF}')
+
+# Check Branch Name
+if [[ "${branch_name}" =~ ([a-zA-Z]{2,})(_[a-zA-Z]+)? ]]; then
+    echo "Appropriate branch naming convention"
+else
+    echo "Illegal branch name. See the README for the branch naming convention."
+    exit 1
+fi
+
+touched_files=$(git diff --name-only "${remote_sha}" "${local_sha}" 2>&1) || new_branch="1"
+if [[ -z "${new_branch}" ]]; then
+    touched_files=$(find * -not -path "*.git*" -not -path '.')
+fi
+for file in $touched_files; do
+    echo "$file"
+    if [[ ("${file}" != "${forbidden_file}" || "${file}" != "README.md") ]]; then
+        if [[ ("${branch_name}" != "${forbidden_branch}") ]]; then
+            # Can only push config file or README to non-master
+            echo "You are not allowed to push ${file} to ${branch_name}."
+            exit 1
+        fi
+    elif [[ ("${file}" = "${forbidden_file}") && ("${branch_name}" = "${forbidden_branch}") ]]; then
+        # Can't push config to master
+        echo "You are not allowed to push ${file} to ${branch_name}."
+        exit 1
+    fi
+done

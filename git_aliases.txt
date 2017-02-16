@@ -1,0 +1,40 @@
+# Hi there,
+#
+# ((Purpose))
+#  This file contains all the git aliases that this framework will respect.
+#
+# ((Structure of this file))
+#  Blank lines and lines starting with a '#' character are ignored.
+#  Otherwise, this is the format expected:
+#  <alias_name>,<command string>
+#
+#  Note: The <command string> should start with a '!' if it is a shell command
+#         Example:
+#           findgits,!find . -name .git
+#
+#        Environment variables should typically be escaped if you want them to
+#         be evaluated at runtime.
+#         Example:
+#           cfg,\${EDITOR} ~/.gitconfig
+#
+#        <command string>'s that don't start with a '!' are git commands
+#         (without the leading 'git' keyword)
+#         Example:
+#           template,config --path --get init.templatedir
+#
+#
+#  Would Recommend: Putting aliases in alphabetical order.
+#
+# ((On Install))
+#  The git aliases in this file are added to your user's .gitconfig
+#
+# ((On Uninstall))
+#  The git aliases in this file are removed from your user's .gitconfig
+#
+aliases,!$(git config --path --get init.templatedir)/../update.sh --aliases
+all,!repo forall -c 'echo "$(basename $(pwd)):" && git update --current'
+logs,!\${EDITOR} $(git config --path --get init.templatedir)/../logs/bettercommit.log
+off,!$(git config --path --get init.templatedir)/../update.sh --off
+tags,!$(git config --path --get init.templatedir)/../utils/tags.py
+template,config --path --get init.templatedir
+update,!$(git config --path --get init.templatedir)/../update.sh

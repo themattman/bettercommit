@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+#
+# Insert `tree` output into the repository in the README
+#
+# Author:  Matthew Kneiser
+# Date:    5/13/2015
+# Purpose: Auto-generate a README for this project
+#
+# WARNING: SEE ALL TODO'S BELOW. YOU MUST MODIFY
+#          THIS SCRIPT FOR IT TO BE USEFUL.
+
+set -e
+
+# Get into the right location
+git_top_level=$(git rev-parse --show-toplevel)
+cd $git_top_level
+
+# Capture output
+tree_output=$(tree)
+now=$(date)
+
+# Overwrite the README
+# TODO: Get the number of lines above and below the intended section in the
+#       README and update below ('7' & '10') in this case.
+#
+#       You should have a section of your README with a header that says
+#       something like:
+#
+#           Directory Structure
+#
+#       From there, you should count the number of lines above and including
+#       this header as well as the lines below the header. Insert those line
+#       counts in the following command.
+#
+#       Test this command out a few times until you get the line counts
+#       correct:
+#
+#           $ head -n NUM_BEGIN README.md && echo -e "$(tree)" && echo -e "\nAuto-generated at: $(date)\n" && tail -n NUM_END README.md
+head -n 7 README.md && \
+    echo -e "\`\`\`\n${tree_output}\n\`\`\`" && \
+    echo -e "\nAuto-generated at: ${now}\n" && \
+    tail -n 10 README.md > README.md

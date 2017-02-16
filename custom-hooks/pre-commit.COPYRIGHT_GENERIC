@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+#
+# Copyright Enforcer
+#
+# Author:  Matthew Kneiser
+# Date:    06/18/2014
+# Purpose: 1) Checks the copyright of changed files
+#          2) Changes the copyright to current year
+#          3) Can check against company-specific copyright
+set -e
+
+if [[ "linux-gnu" = "${OSTYPE}" ]]; then
+    COLOR_YELLOW="\e[1;35m"
+    COLOR_GREEN="\e[0;32m"
+    COLOR_END="\033[0m"
+fi
+X_ENTITY_REGEX="\(ENTITY_NAME1\|ENTITY_NAME2\|ENTITY_NAME3\)" # TODO FILL IN THESE
+
+if git rev-parse --verify HEAD >/dev/null 2>&1 ; then
+   against=HEAD
+else
+   # Initial commit: diff against an empty tree object
+   against=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+fi
+
+STAGED_FILES=$(git diff --name-only --cached $against | tr '\n' ' ' | sed  -e 's/ $//')
+for FILE in ${STAGED_FILES}; do
+    if [[ ! -f "$FILE" ]]; then
+        echo -e "${FILE}: No suspicous lines because the file doesn't exist."
+        continue
+    fi
+
+    # Get line number(s) of copyright
+    COPYRIGHT_LINES=$(grep -Iin "\(copyright\)\|\((c)\)" ${FILE} | awk -F: '{print $1}')
+    if [[ -z "${COPYRIGHT_LINES}" ]]; then
+        echo -e "${FILE}: No suspicous lines."
+        continue
+    fi
+    echo "${FILE}:"
+
+    for LINE in $COPYRIGHT_LINES; do
+        COPYRIGHT_YR=$(sed -n ${LINE},${LINE}p ${FILE} | grep -iIso "[[:digit:]]\{4\}.*$" | grep -o "^.*[[:digit:]]\{4\}" | tr -d ' ' | tr '-' ',' | awk -F',' '{print $NF}' | grep -o "[[:digit:]]\{4\}") || COPYRIGHT_YR="-1"
+
+        # Warn user if not an X_ENTITY copyright
+        IS_X_ENTITY_COPYRIGHT=0
+        $(sed -n ${LINE},${LINE}p ${FILE} | grep -iq "${X_ENTITY_REGEX}" 2>/dev/null) || IS_X_ENTITY_COPYRIGHT=1
+        if [[ "${IS_X_ENTITY_COPYRIGHT}" -ne 0 ]]; then
+            echo -e "\t${COLOR_YELLOW}Warning: There seems to be a non-X_ENTITY copyright. Should this be changed?${COLOR_END}" >&2
+            echo -e "\t\t#[${LINE}] -> [$(sed -n ${LINE},${LINE}p ${FILE} | grep --color=always -i '\(copyright\)\|\((c)\)')]"
+        elif [[ "${COPYRIGHT_YR}" -eq -1 ]]; then
+            echo -e "\tNo copyright in [${FILE}]"
+            break
+        else
+            # Overwrite old copyright year in file if year isn't current
+            CURRENT_YR=$(date +%Y)
+            if [[ "${COPYRIGHT_YR}" -ne "${CURRENT_YR}" ]]; then
+                echo -e "\t[Bad] [${COPYRIGHT_YR}] - #[${LINE}] -> [$(sed -n ${LINE},${LINE}p ${FILE} | grep --color=always -i '\(copyright\)\|\((c)\)')]"
+                echo -e "\t${COLOR_GREEN}Changing year on [$FILE]...${COLOR_END}"
+                set -x
+                # Update the copyright to the current year
+                sed -i'' "${LINE}s/${COPYRIGHT_YR}/${CURRENT_YR}/" "${FILE}"
+                # Trick to prevent the "set +x" from showing up in stdout, makes
+                # output more readable. Just want to show the sed command.
+                { set +x; } 2>/dev/null
+
+                echo -e "\tNow adding that file to git..."
+                set -x
+                git add "$FILE"
+                # Trick to prevent the "set +x" from showing up in stdout, makes
+                # output more readable. Just want to show the git add command.
+                { set +x; } 2>/dev/null
+
+                # Quit reading in file - You've found the copyright to change
+                # and changed it
+                break
+            else
+                echo -e "\t[OK] [${COPYRIGHT_YR}] - #[${LINE}] -> [$(sed -n ${LINE},${LINE}p ${FILE} | grep --color=always -i '\(copyright\)\|\((c)\)')]"
+            fi
+        fi
+    done
+done
