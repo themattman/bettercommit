@@ -6,7 +6,7 @@
 # Date:    7/18/2015
 # Purpose: Install the templates
 set -e
-
+source "${0}/../utils/readlink.sh"
 
 ################################################################################
 ##

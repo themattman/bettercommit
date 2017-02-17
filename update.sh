@@ -27,6 +27,7 @@
 # ${log_location}. These logs get rotated so they don't take up too much space
 # in the user's home directory.
 set -e
+source "${0}/../utils/readlink.sh"
 
 ################################################################################
 ##
