@@ -85,3 +85,9 @@ git off
 
 git update --off
 ```
+
+## Dependencies
+
+* logrotate(8)
+
+* readlink(1)

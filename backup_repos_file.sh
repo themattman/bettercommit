@@ -5,7 +5,7 @@
 # Author: Matthew Kneiser
 # Date:   03/21/2016
 set -e
-source "${0}/../utils/readlink.sh"
+source "$(dirname ${0})/utils/readlink.sh"
 
 exit_error () {
     if [[ -n $git_str ]]; then

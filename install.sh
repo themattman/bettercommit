@@ -6,7 +6,7 @@
 # Date:    7/18/2015
 # Purpose: Install the templates
 set -e
-source "${0}/../utils/readlink.sh"
+source "$(dirname ${0})/utils/readlink.sh"
 
 ################################################################################
 ##
@@ -64,8 +64,9 @@ setup_logs () {
     log_filepath=$(readlink -f "${log_location}/${logrotate_config_file_name}")
     echo "\"${log_filepath%.conf}.log\"" > "${log_filepath}"
     get_user_acct
-    sed s/mail/"mail ${USER_EMAIL}"/ "${log_filepath}.setup" \
-        >> "${log_filepath}"
+    cat "${log_filepath}.setup" >> "${log_filepath}"
+    # sed s/mail/"mail ${USER_EMAIL}"/ "${log_filepath}.setup" \
+    #     >> "${log_filepath}"
 }
 
 ################################################################################
