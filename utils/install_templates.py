@@ -69,7 +69,7 @@ def persist_location_of_target_repo(git_dir):
     """
     def commit_repo_backup_file():
         backup_command = "%s" % (
-            os.path.join(get_template_dir(), "..", "utils", "backup_repos_file.sh")
+            os.path.join(get_template_dir(), ".." "backup_repos_file.sh")
         )
         print('-')
         print(backup_command.split())
